@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-bg: #151515;
+  --color-panel: #1e1e1e;
+  --color-panel2: #222222;
+  --color-line: #333333;
+  --color-muted: #9d9d9d;
+  --color-dim: #808080;
+  --color-soft: #e6e6e6;
+  --color-accent: #bbdbdf;
+  --color-watching: #96ca8e;
+  --color-planned: #ffd0ad;
+  --color-dropped: #ff7a6d;
+  --font-sans: var(--font-roboto), system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+html {
+  background: #151515;
+  color-scheme: dark;
+}
+
+body {
+  background: #151515;
+  color: #fff;
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: #bbdbdf;
+  color: #151515;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.thin-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #333 transparent;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #1e1e1e 25%, #282828 50%, #1e1e1e 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.anim-fade {
+  animation: fade-in 0.2s ease-out;
+}
+.anim-pop {
+  animation: pop-in 0.25s ease-out;
+}
+
+:focus-visible {
+  outline: 2px solid #bbdbdf;
+  outline-offset: 2px;
+}
+
+input[type="range"] {
+  accent-color: #bbdbdf;
+}
