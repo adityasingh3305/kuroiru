@@ -1,23 +1,22 @@
 "use client";
 
-import { useCallback } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useRef } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import type { MouseEvent, ReactNode } from "react";
-
-let pushedByUs = false;
-
-// Once the user navigates with Back/Forward, the modal's history entry is no longer
-// ours to pop, so closing must not call router.back() anymore.
-if (typeof window !== "undefined") {
-  window.addEventListener("popstate", () => {
-    pushedByUs = false;
-  });
-}
 
 export function useAnimeModal() {
   const router = useRouter();
   const pathname = usePathname();
-  const search = useSearchParams();
+  const pushedByUs = useRef(false);
+
+  useEffect(() => {
+    const handler = () => {
+      pushedByUs.current = false;
+    };
+    window.addEventListener("popstate", handler);
+    return () => window.removeEventListener("popstate", handler);
+  }, []);
 
   const open = useCallback(
     (id: number, replace = false) => {
@@ -25,31 +24,33 @@ export function useAnimeModal() {
         router.push(`/anime/${id}`);
         return;
       }
-      const sp = new URLSearchParams(search.toString());
+      const search = typeof window !== "undefined" ? window.location.search : "";
+      const sp = new URLSearchParams(search);
       const had = sp.has("id");
       sp.set("id", String(id));
       const url = `${pathname}?${sp.toString()}`;
       if (replace || had) {
         router.replace(url, { scroll: false });
       } else {
-        pushedByUs = true;
+        pushedByUs.current = true;
         router.push(url, { scroll: false });
       }
     },
-    [router, pathname, search],
+    [router, pathname],
   );
 
   const close = useCallback(() => {
-    if (pushedByUs) {
-      pushedByUs = false;
+    if (pushedByUs.current) {
+      pushedByUs.current = false;
       router.back();
       return;
     }
-    const sp = new URLSearchParams(search.toString());
+    const search = typeof window !== "undefined" ? window.location.search : "";
+    const sp = new URLSearchParams(search);
     sp.delete("id");
     const qs = sp.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-  }, [router, pathname, search]);
+  }, [router, pathname]);
 
   return { open, close };
 }
@@ -76,8 +77,8 @@ export function AnimeLink({
     open(id, replace);
   };
   return (
-    <a href={`/anime/${id}`} onClick={onClick} className={className} title={title}>
+    <Link href={`/anime/${id}`} onClick={onClick} className={className} title={title}>
       {children}
-    </a>
+    </Link>
   );
 }

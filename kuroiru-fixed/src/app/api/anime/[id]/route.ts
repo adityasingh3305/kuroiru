@@ -14,5 +14,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     return NextResponse.json({ error: "AniList unavailable" }, { status: 502 });
   }
   if (!anime) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json({ anime });
+  return NextResponse.json(
+    { anime },
+    { headers: { "Cache-Control": "public, s-maxage=600, stale-while-revalidate=1200" } },
+  );
 }

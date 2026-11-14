@@ -13,6 +13,7 @@
   --color-planned: #ffd0ad;
   --color-dropped: #ff7a6d;
   --font-sans: var(--font-roboto), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --z-39: 39;
 }
 
 html {
@@ -42,6 +43,15 @@ body {
 .thin-scroll {
   scrollbar-width: thin;
   scrollbar-color: #333 transparent;
+}
+
+.scroll-progress-bar {
+  box-shadow: 0 0 8px 1px color-mix(in srgb, #bbdbdf 60%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .scroll-progress-bar {
+    transition: none;
+  }
 }
 
 .skeleton {
@@ -87,4 +97,83 @@ body {
 
 input[type="range"] {
   accent-color: #bbdbdf;
+}
+
+@keyframes browse-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.browse-card-enter {
+  animation: browse-card-enter 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .browse-card-enter {
+    animation: none;
+  }
+}
+
+/* ---------- Button helpers ---------- */
+
+/* base: smooth transitions + press feedback */
+.btn {
+  transition: scale .15s ease, translate .2s ease, box-shadow .2s ease,
+              background-color .2s, border-color .2s, color .2s, filter .2s;
+}
+.btn:active:not(:disabled) { scale: .95; }
+
+/* lift + glow on hover */
+.btn-lift:hover:not(:disabled) {
+  translate: 0 -2px;
+  box-shadow: 0 8px 20px -8px rgb(187 219 223 / .55);
+}
+.btn-lift:active:not(:disabled) { translate: 0 0; }
+
+/* light sweep across the button (use on bg-accent / bg-white buttons) */
+.btn-shine { position: relative; overflow: hidden; }
+.btn-shine::after {
+  content: "";
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / .5) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform .6s ease;
+}
+.btn-shine:hover::after { transform: translateX(120%); }
+
+/* icon pops when a toggle turns on (Check, Play, Clock...) */
+@keyframes icon-pop {
+  0%   { transform: scale(.4) rotate(-20deg); opacity: 0; }
+  60%  { transform: scale(1.3) rotate(8deg);  opacity: 1; }
+  100% { transform: scale(1) rotate(0); }
+}
+.icon-pop { animation: icon-pop .35s ease-out; display: inline-grid; }
+
+/* wiggle icon on hover (trash, etc.) */
+@keyframes wiggle {
+  0%,100% { transform: rotate(0); }
+  25% { transform: rotate(-14deg); }
+  75% { transform: rotate(14deg); }
+}
+.icon-wiggle:hover svg { animation: wiggle .4s ease-in-out; }
+
+/* error shake */
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  20%,60% { transform: translateX(-5px); }
+  40%,80% { transform: translateX(5px); }
+}
+.anim-shake { animation: shake .4s ease-in-out; }
+
+/* respect reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .btn, .btn-lift, .btn-shine::after { transition: none; }
+  .icon-pop, .anim-shake, .icon-wiggle:hover svg { animation: none; }
 }

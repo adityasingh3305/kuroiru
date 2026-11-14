@@ -31,19 +31,23 @@ export default function AnimeCard({
     .join(" · ");
 
   return (
-    <div className={`group relative min-w-0 ${className}`}>
+    <div className={`group relative min-w-0 transition hover:-translate-y-1 ${className}`}>
       <AnimeLink id={anime.id} className="block" title={anime.title}>
         <div
           className="relative aspect-[2/3] overflow-hidden rounded-lg border border-line bg-panel transition group-hover:border-accent/60"
           style={{ backgroundColor: anime.color ?? undefined }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={anime.cover}
-            alt={anime.title}
-            loading={priority ? "eager" : "lazy"}
-            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-          />
+          {anime.cover ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={anime.cover}
+              alt={anime.title}
+              loading={priority ? "eager" : "lazy"}
+              className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+            />
+          ) : (
+            <div className="h-full w-full bg-panel2" />
+          )}
           <div className="absolute inset-x-0 top-0 flex items-start justify-between p-1.5">
             {anime.score ? (
               <span className="flex items-center gap-0.5 rounded bg-black/70 px-1.5 py-0.5 text-[11px] font-medium text-soft backdrop-blur">
@@ -77,7 +81,7 @@ export default function AnimeCard({
       </AnimeLink>
 
       {/* quick status — visible on hover (pointer devices) */}
-      <div className="pointer-events-none absolute inset-x-0 top-[calc(100%*0.0)] hidden aspect-[2/3] items-end justify-center gap-1 p-1.5 opacity-0 transition group-hover:opacity-100 [@media(hover:hover)]:flex">
+      <div className="pointer-events-none absolute inset-x-0 top-0 hidden aspect-[2/3] items-end justify-center gap-1 p-1.5 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100 focus-within:opacity-100 [@media(hover:hover)]:flex">
         <div className="pointer-events-auto mb-0 flex gap-1 rounded-md bg-black/80 p-1 backdrop-blur">
           <QuickBtn label="Plan to watch" active={entry?.status === "PLANNING"} onClick={quick("PLANNING")}>
             <Clock size={14} />
@@ -111,11 +115,13 @@ function QuickBtn({
       aria-label={label}
       title={label}
       onClick={onClick}
-      className={`grid h-7 w-7 place-items-center rounded transition ${
+      className={`btn grid h-7 w-7 place-items-center rounded transition hover:scale-110 active:scale-90 ${
         active ? "bg-accent text-black" : "text-soft hover:bg-white/15"
       }`}
     >
-      {children}
+      <span key={String(active)} className={active ? "icon-pop" : ""}>
+        {children}
+      </span>
     </button>
   );
 }
@@ -132,7 +138,7 @@ export function CardSkeleton() {
 
 export function CardGrid({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 sm:gap-x-4 md:grid-cols-4 lg:grid-cols-5 min-[1500px]:grid-cols-6">
+    <div className="grid grid-cols-3 gap-x-2 gap-y-5 sm:grid-cols-4 sm:gap-x-3 md:grid-cols-5 lg:grid-cols-6 min-[1500px]:grid-cols-7">
       {children}
     </div>
   );

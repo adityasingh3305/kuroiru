@@ -4,12 +4,20 @@ import { useEffect, useRef, useState } from "react";
 import { Music2, Play, Video, Headphones } from "lucide-react";
 import type { AnimeTheme } from "@/lib/types";
 
+export type ThemesLoad =
+  | { status: "loading" }
+  | { status: "error" }
+  | { status: "empty" }
+  | { status: "ready"; themes: AnimeTheme[] };
+
+export type PlayerState =
+  | { status: "idle" }
+  | { status: "playing"; theme: AnimeTheme; audioOnly: boolean }
+  | { status: "error"; theme: AnimeTheme; audioOnly: boolean };
+
 export default function TabMusic({ animeId }: { animeId: number }) {
-  const [themes, setThemes] = useState<AnimeTheme[] | null>(null);
-  const [failed, setFailed] = useState(false);
-  const [playing, setPlaying] = useState<AnimeTheme | null>(null);
-  const [audioOnly, setAudioOnly] = useState(false);
-  const [playError, setPlayError] = useState(false);
+  const [load, setLoad] = useState<ThemesLoad>({ status: "loading" });
+  const [player, setPlayer] = useState<PlayerState>({ status: "idle" });
   const mediaRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -18,19 +26,40 @@ export default function TabMusic({ animeId }: { animeId: number }) {
       .then(async (r) => {
         const d = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error("AnimeThemes unavailable");
-        setFailed(false);
-        setThemes(d.themes ?? []);
+        if (Array.isArray(d.themes) && d.themes.length > 0) {
+          setLoad({ status: "ready", themes: d.themes });
+        } else {
+          setLoad({ status: "empty" });
+        }
       })
       .catch(() => {
         if (!ctrl.signal.aborted) {
-          setThemes([]);
-          setFailed(true);
+          setLoad({ status: "error" });
         }
       });
     return () => ctrl.abort();
   }, [animeId]);
 
-  if (themes === null) {
+  const playingTheme = player.status !== "idle" ? player.theme : null;
+  const isAudioOnly = player.status !== "idle" && player.audioOnly;
+
+  const video = playingTheme
+    ? [...playingTheme.videos].sort(
+        (a, b) =>
+          Number(a.tags.includes("Lyrics")) - Number(b.tags.includes("Lyrics")) ||
+          (b.resolution ?? 0) - (a.resolution ?? 0),
+      )[0]
+    : undefined;
+  const isAudio = isAudioOnly && !!video?.audio;
+  const src = video ? (isAudio ? video.audio : video.link) : null;
+
+  useEffect(() => {
+    if (mediaRef.current) {
+      mediaRef.current.load();
+    }
+  }, [src]);
+
+  if (load.status === "loading") {
     return (
       <div className="space-y-2">
         {[0, 1, 2, 3].map((i) => (
@@ -40,27 +69,31 @@ export default function TabMusic({ animeId }: { animeId: number }) {
     );
   }
 
-  if (themes.length === 0) {
+  if (load.status === "error") {
     return (
       <div className="rounded-lg border border-line bg-panel p-8 text-center text-sm text-muted">
         <Music2 className="mx-auto mb-2 text-dim" />
-        {failed
-          ? "Couldn't reach AnimeThemes right now. Try again later."
-          : "No openings or endings found on AnimeThemes for this title."}
+        Couldn&apos;t reach AnimeThemes right now. Try again later.
       </div>
     );
   }
 
-  const video = playing?.videos.find((v) => !v.tags.includes("Lyrics")) ?? playing?.videos[0];
-  const isAudio = audioOnly && !!video?.audio;
-  const src = video ? (isAudio ? video.audio : video.link) : null;
+  if (load.status === "empty") {
+    return (
+      <div className="rounded-lg border border-line bg-panel p-8 text-center text-sm text-muted">
+        <Music2 className="mx-auto mb-2 text-dim" />
+        No openings or endings found on AnimeThemes for this title.
+      </div>
+    );
+  }
+
+  const themes = load.themes;
   const ops = themes.filter((t) => t.type === "OP");
   const eds = themes.filter((t) => t.type === "ED");
   const other = themes.filter((t) => t.type !== "OP" && t.type !== "ED");
 
   const play = (t: AnimeTheme) => {
-    setPlayError(false);
-    setPlaying(t);
+    setPlayer({ status: "playing", theme: t, audioOnly: false });
   };
 
   const renderList = (title: string, items: AnimeTheme[]) =>
@@ -69,7 +102,7 @@ export default function TabMusic({ animeId }: { animeId: number }) {
         <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-dim">{title}</h3>
         <ul className="space-y-2">
           {items.map((t) => {
-            const active = playing?.id === t.id;
+            const active = playingTheme?.id === t.id;
             return (
               <li key={t.id}>
                 <button
@@ -100,7 +133,7 @@ export default function TabMusic({ animeId }: { animeId: number }) {
 
   return (
     <div className="space-y-5">
-      {playing && src && (
+      {playingTheme && src && (
         <div className="overflow-hidden rounded-lg border border-line bg-black">
           <video
             key={src}
@@ -109,16 +142,28 @@ export default function TabMusic({ animeId }: { animeId: number }) {
             controls
             autoPlay
             playsInline
-            onError={() => setPlayError(true)}
+            onError={() => {
+              setPlayer((prev) =>
+                prev.status !== "idle"
+                  ? { status: "error", theme: prev.theme, audioOnly: prev.audioOnly }
+                  : prev,
+              );
+            }}
             className={isAudio ? "h-14 w-full" : "aspect-video w-full"}
           />
           <div className="flex items-center justify-between gap-3 bg-panel px-3 py-2 text-xs">
             <span className="min-w-0 truncate text-soft">
-              {playing.slug} — {playing.title}
+              {playingTheme.slug} — {playingTheme.title}
             </span>
             {video?.audio && (
               <button
-                onClick={() => setAudioOnly((v) => !v)}
+                onClick={() => {
+                  setPlayer((prev) =>
+                    prev.status !== "idle"
+                      ? { ...prev, audioOnly: !prev.audioOnly }
+                      : prev,
+                  );
+                }}
                 className="flex shrink-0 items-center gap-1.5 rounded border border-line px-2 py-1 text-muted hover:text-white"
               >
                 {isAudio ? <Video size={12} /> : <Headphones size={12} />}
@@ -126,7 +171,7 @@ export default function TabMusic({ animeId }: { animeId: number }) {
               </button>
             )}
           </div>
-          {playError && (
+          {player.status === "error" && (
             <div className="bg-dropped/15 px-3 py-2 text-xs text-dropped">
               This file couldn&apos;t be played. Try another theme or toggle audio-only.
             </div>

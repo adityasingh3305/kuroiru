@@ -4,6 +4,12 @@ import { useEffect, useState } from "react";
 import { Play, Star, Trophy } from "lucide-react";
 import type { AnimeDetail } from "@/lib/types";
 import { countdown, titleCase, formatLabel } from "@/lib/format";
+import { mappingLinks } from "@/lib/aniZip";
+import { useAniZip } from "@/lib/useAniZip";
+import NextEpisodeCard from "./NextEpisodeCard";
+
+const LINK_CLS =
+  "rounded border border-line px-2.5 py-1 text-muted transition hover:-translate-y-0.5 hover:border-accent hover:text-white active:scale-95";
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   if (value === null || value === undefined || value === "") return null;
@@ -19,6 +25,8 @@ export default function TabInfo({ anime }: { anime: AnimeDetail }) {
   const [expanded, setExpanded] = useState(false);
   const [trailer, setTrailer] = useState(false);
   const [now, setNow] = useState(0);
+  const { data: zip, loading: zipLoading } = useAniZip(anime.id);
+
   useEffect(() => {
     const t0 = setTimeout(() => setNow(Date.now()), 0);
     const t = setInterval(() => setNow(Date.now()), 60000);
@@ -29,14 +37,25 @@ export default function TabInfo({ anime }: { anime: AnimeDetail }) {
   }, []);
 
   const streaming = anime.externalLinks.filter((l) => l.type === "STREAMING");
-  const social = anime.externalLinks.filter((l) => l.type !== "STREAMING").slice(0, 6);
+  const social = anime.externalLinks
+    .filter((l) => l.type !== null && l.type !== "STREAMING")
+    .slice(0, 6);
+  const extra = mappingLinks(zip).filter(
+    (l) => !social.some((s) => s.site.toLowerCase() === l.name.toLowerCase()),
+  );
   const desc = anime.description ?? "No synopsis available.";
   const long = desc.length > 420;
+  const hasAniZipNext =
+    !!zip?.episodes &&
+    Object.values(zip.episodes).some(
+      (e) => e.airDateUtc && new Date(e.airDateUtc).getTime() > now - 60_000,
+    );
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
       <div className="min-w-0 space-y-6">
-        {anime.nextAiring && now > 0 && (
+        <NextEpisodeCard anilistId={anime.id} />
+        {!hasAniZipNext && anime.nextAiring && now > 0 && (
           <div className="flex items-center gap-3 rounded-lg border border-watching/40 bg-watching/10 px-4 py-3 text-sm">
             <span className="h-2 w-2 animate-pulse rounded-full bg-[#00ff00]" />
             <span>
@@ -59,7 +78,10 @@ export default function TabInfo({ anime }: { anime: AnimeDetail }) {
             {desc}
           </p>
           {long && (
-            <button onClick={() => setExpanded((v) => !v)} className="mt-1 text-sm text-accent hover:underline">
+            <button
+              onClick={() => setExpanded((v) => !v)}
+              className="mt-1 text-sm text-accent transition hover:underline active:scale-95"
+            >
               {expanded ? "Show less" : "Read more"}
             </button>
           )}
@@ -71,7 +93,7 @@ export default function TabInfo({ anime }: { anime: AnimeDetail }) {
               <a
                 key={g}
                 href={`/search?genre=${encodeURIComponent(g)}`}
-                className="rounded-full border border-line bg-panel px-3 py-1 text-xs text-accent transition hover:border-accent"
+                className="rounded-full border border-line bg-panel px-3 py-1 text-xs text-accent transition hover:-translate-y-0.5 hover:border-accent active:scale-95"
               >
                 {g}
               </a>
@@ -83,13 +105,13 @@ export default function TabInfo({ anime }: { anime: AnimeDetail }) {
           <section>
             <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-dim">Trailer</h2>
             {trailer ? (
-              <div className="aspect-video overflow-hidden rounded-lg border border-line">
+              <div className="relative aspect-video w-full max-w-lg overflow-hidden rounded-lg border border-line">
                 <iframe
                   src={`https://www.youtube-nocookie.com/embed/${anime.trailer.id}?autoplay=1`}
                   title="Trailer"
                   allow="autoplay; encrypted-media; picture-in-picture"
                   allowFullScreen
-                  className="h-full w-full"
+                  className="absolute inset-0 h-full w-full"
                 />
               </div>
             ) : (
@@ -104,7 +126,7 @@ export default function TabInfo({ anime }: { anime: AnimeDetail }) {
                   className="h-full w-full object-cover transition group-hover:scale-105"
                 />
                 <span className="absolute inset-0 grid place-items-center bg-black/30">
-                  <span className="grid h-14 w-14 place-items-center rounded-full bg-white/90 text-black">
+                  <span className="grid h-14 w-14 place-items-center rounded-full bg-white/90 text-black transition duration-300 group-hover:scale-110 group-active:scale-95">
                     <Play size={22} className="ml-0.5 fill-black" />
                   </span>
                 </span>
@@ -123,7 +145,7 @@ export default function TabInfo({ anime }: { anime: AnimeDetail }) {
                   href={l.url}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="rounded-md px-3 py-1.5 text-xs font-bold text-black transition hover:brightness-110"
+                  className="rounded-md px-3 py-1.5 text-xs font-bold text-black transition hover:-translate-y-0.5 hover:brightness-110 active:scale-95"
                   style={{ background: l.color ?? "#bbdbdf" }}
                 >
                   {l.site}
@@ -138,7 +160,7 @@ export default function TabInfo({ anime }: { anime: AnimeDetail }) {
                       href={e.url}
                       target="_blank"
                       rel="noreferrer noopener"
-                      className="flex items-center gap-3 rounded-lg border border-line bg-panel p-2 transition hover:border-accent"
+                      className="flex items-center gap-3 rounded-lg border border-line bg-panel p-2 transition hover:border-accent active:scale-[0.98]"
                     >
                       {e.thumbnail && (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -180,7 +202,14 @@ export default function TabInfo({ anime }: { anime: AnimeDetail }) {
           <Row label="Episodes" value={anime.episodes} />
           <Row label="Duration" value={anime.duration ? `${anime.duration} min` : null} />
           <Row label="Status" value={titleCase(anime.status)} />
-          <Row label="Aired" value={anime.startDate ? `${anime.startDate}${anime.endDate && anime.endDate !== anime.startDate ? ` → ${anime.endDate}` : ""}` : null} />
+          <Row
+            label="Aired"
+            value={
+              anime.startDate
+                ? `${anime.startDate}${anime.endDate && anime.endDate !== anime.startDate ? ` → ${anime.endDate}` : ""}`
+                : null
+            }
+          />
           <Row label="Season" value={anime.year ? `${titleCase(anime.season)} ${anime.year}` : null} />
           <Row label="Source" value={titleCase(anime.source)} />
           <Row label="Studio" value={anime.studios.slice(0, 3).join(", ")} />
@@ -215,15 +244,21 @@ export default function TabInfo({ anime }: { anime: AnimeDetail }) {
 
         <div className="flex flex-wrap gap-2 text-xs">
           {anime.siteUrl && (
-            <a href={anime.siteUrl} target="_blank" rel="noreferrer noopener" className="rounded border border-line px-2.5 py-1 text-muted hover:text-white">
+            <a href={anime.siteUrl} target="_blank" rel="noreferrer noopener" className={LINK_CLS}>
               AniList ↗
             </a>
           )}
           {social.map((l) => (
-            <a key={l.url} href={l.url} target="_blank" rel="noreferrer noopener" className="rounded border border-line px-2.5 py-1 text-muted hover:text-white">
+            <a key={l.url} href={l.url} target="_blank" rel="noreferrer noopener" className={LINK_CLS}>
               {l.site} ↗
             </a>
           ))}
+          {extra.map((l) => (
+            <a key={l.name} href={l.url} target="_blank" rel="noreferrer noopener" className={`anim-fade ${LINK_CLS}`}>
+              {l.name} ↗
+            </a>
+          ))}
+          {zipLoading && [0, 1, 2].map((n) => <span key={n} className="skeleton h-6 w-16 rounded" />)}
         </div>
       </aside>
     </div>

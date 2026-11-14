@@ -11,6 +11,7 @@ export default function WatchlistButton({ anime }: { anime: AnimeSummary }) {
   const track = useStore((s) => s.track);
   const remove = useStore((s) => s.remove);
   const synced = useStore((s) => !!s.anilistToken);
+  const syncError = useStore((s) => s.lastSyncError);
 
   const meta = entry ? WATCH_STATUSES.find((s) => s.value === entry.status) : undefined;
   const total = anime.episodes;
@@ -47,18 +48,18 @@ export default function WatchlistButton({ anime }: { anime: AnimeSummary }) {
               <button
                 aria-label="Decrease episode"
                 onClick={() => track(anime, { progress: entry.progress - 1 })}
-                className="grid h-full w-9 place-items-center text-muted hover:text-white"
+                className="grid h-full w-9 place-items-center text-muted transition hover:text-white hover:bg-white/10 active:scale-75"
               >
                 <Minus size={14} />
               </button>
               <div className="min-w-[64px] text-center text-sm tabular-nums">
-                <span className="text-white">{entry.progress}</span>
+                <span key={entry.progress} className="icon-pop text-white">{entry.progress}</span>
                 <span className="text-dim"> / {total ?? "?"}</span>
               </div>
               <button
                 aria-label="Increase episode"
                 onClick={() => track(anime, { progress: entry.progress + 1 })}
-                className="grid h-full w-9 place-items-center text-muted hover:text-white"
+                className="grid h-full w-9 place-items-center text-muted transition hover:text-white hover:bg-white/10 active:scale-75"
               >
                 <Plus size={14} />
               </button>
@@ -79,10 +80,14 @@ export default function WatchlistButton({ anime }: { anime: AnimeSummary }) {
             </select>
 
             <button
-              onClick={() => remove(anime.id)}
+              onClick={() => {
+                if (window.confirm(`Remove "${anime.title}" from your list?`)) {
+                  remove(anime.id);
+                }
+              }}
               aria-label="Remove from list"
               title="Remove from list"
-              className="ml-auto grid h-10 w-10 place-items-center rounded-lg border border-line text-muted transition hover:border-dropped hover:text-dropped"
+              className="btn icon-wiggle ml-auto grid h-10 w-10 place-items-center rounded-lg border border-line text-muted transition hover:border-dropped hover:text-dropped hover:-rotate-12 active:scale-90"
             >
               <Trash2 size={15} />
             </button>
@@ -97,8 +102,12 @@ export default function WatchlistButton({ anime }: { anime: AnimeSummary }) {
           />
         </div>
       ) : null}
-      <p className="mt-2 text-[11px] text-dim">
-        {synced ? "Saved locally · syncing to AniList" : "Saved locally — connect AniList to sync"}
+      <p className={`mt-2 text-[11px] ${syncError ? "text-dropped" : "text-dim"}`}>
+        {syncError
+          ? `Saved locally · AniList sync error: ${syncError}`
+          : synced
+            ? "Saved locally · syncing to AniList"
+            : "Saved locally — connect AniList to sync"}
       </p>
     </div>
   );

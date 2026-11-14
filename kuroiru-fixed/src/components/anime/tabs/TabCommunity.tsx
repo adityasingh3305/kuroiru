@@ -15,11 +15,23 @@ const MAX_COMMENTS = 100;
 
 const commentsKey = (animeId: number) => `kuroiru-comments-${animeId}`;
 
+function isValidComment(c: unknown): c is Comment {
+  if (!c || typeof c !== "object") return false;
+  const obj = c as Record<string, unknown>;
+  return (
+    typeof obj.id === "string" &&
+    typeof obj.author === "string" &&
+    typeof obj.body === "string" &&
+    typeof obj.createdAt === "number" &&
+    Number.isFinite(obj.createdAt)
+  );
+}
+
 function readComments(animeId: number): Comment[] {
   try {
     const raw = localStorage.getItem(commentsKey(animeId));
     const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.filter(isValidComment) : [];
   } catch {
     return [];
   }
@@ -40,16 +52,21 @@ export default function TabCommunity({ animeId }: { animeId: number }) {
   const [body, setBody] = useState("");
   const [author, setAuthor] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => setAuthor(localStorage.getItem("kuroiru-name") ?? ""), 0);
-    return () => clearTimeout(t);
+    setMounted(true);
   }, []);
 
   useEffect(() => {
-    const t = setTimeout(() => setComments(readComments(animeId)), 0);
-    return () => clearTimeout(t);
-  }, [animeId]);
+    if (!mounted) return;
+    setAuthor(localStorage.getItem("kuroiru-name") ?? "");
+  }, [mounted]);
+
+  useEffect(() => {
+    if (!mounted) return;
+    setComments(readComments(animeId));
+  }, [mounted, animeId]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,12 +118,12 @@ export default function TabCommunity({ animeId }: { animeId: number }) {
           <span className="text-xs text-dim">{body.length}/1000</span>
           <button
             disabled={!body.trim()}
-            className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-black disabled:opacity-40"
+            className="btn btn-shine group flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-black transition active:scale-95 disabled:opacity-40"
           >
-            <Send size={14} /> Post
+            <Send size={14} className="transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" /> Post
           </button>
         </div>
-        {error && <p className="text-xs text-dropped">{error}</p>}
+        {error && <p className="anim-shake text-xs text-dropped">{error}</p>}
       </form>
 
       {comments === null ? (

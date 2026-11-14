@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Search, SlidersHorizontal, X } from "lucide-react";
+import { Loader2, Search, SlidersHorizontal, X } from "lucide-react";
 import { AIR_STATUSES, FORMATS, GENRES, SEASONS, SORTS, type AnimeSummary } from "@/lib/types";
 import { titleCase, formatLabel } from "@/lib/format";
 import AnimeCard, { CardGrid, CardSkeleton } from "./AnimeCard";
@@ -20,24 +20,122 @@ function Select({
   onChange: (v: string) => void;
   options: { value: string; label: string }[];
 }) {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+  const listRef = React.useRef<HTMLUListElement>(null);
+
+  React.useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") { setOpen(false); return; }
+    if (e.key === "Enter" || e.key === " ") { setOpen((v) => !v); return; }
+    if (!open && (e.key === "ArrowDown" || e.key === "ArrowUp")) { setOpen(true); return; }
+    if (open && listRef.current) {
+      const items = Array.from(listRef.current.querySelectorAll<HTMLLIElement>("li[role=option]"));
+      const idx = items.findIndex((el) => el.getAttribute("data-value") === value);
+      let next = idx;
+      if (e.key === "ArrowDown") next = Math.min(idx + 1, items.length - 1);
+      if (e.key === "ArrowUp") next = Math.max(idx - 1, 0);
+      if (next !== idx) {
+        e.preventDefault();
+        const v = items[next]?.getAttribute("data-value") ?? "";
+        onChange(v);
+        items[next]?.scrollIntoView({ block: "nearest" });
+      }
+    }
+  };
+
+  const displayLabel = value ? (options.find((o) => o.value === value)?.label ?? value) : "Any";
+  const isActive = !!value;
+
   return (
-    <label className="block min-w-0">
+    <div ref={ref} className="relative block min-w-0">
       <span className="mb-1 block text-[11px] uppercase tracking-wide text-dim">{label}</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={`h-10 w-full rounded-lg border bg-panel px-2 text-sm focus:border-accent focus:outline-none ${
-          value ? "border-accent/60 text-white" : "border-line text-muted"
+
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onKeyDown={handleKeyDown}
+        onClick={() => setOpen((v) => !v)}
+        className={`flex h-10 w-full items-center justify-between gap-2 rounded-lg border px-3 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 ${
+          isActive
+            ? "border-accent/60 bg-accent/10 text-white"
+            : "border-line bg-panel text-muted hover:border-accent/40 hover:text-soft"
         }`}
       >
-        <option value="">Any</option>
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </label>
+        <span className="truncate">{displayLabel}</span>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="12" height="12" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor" strokeWidth="2.5"
+          strokeLinecap="round" strokeLinejoin="round"
+          className={`flex-shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+
+      {open && (
+        <ul
+          ref={listRef}
+          role="listbox"
+          aria-label={label}
+          className="absolute z-50 mt-1.5 max-h-60 w-full overflow-y-auto rounded-xl border border-line bg-[#141418] py-1 shadow-xl shadow-black/40"
+          style={{ scrollbarWidth: "thin" }}
+        >
+          <li
+            role="option"
+            data-value=""
+            aria-selected={value === ""}
+            onClick={() => { onChange(""); setOpen(false); }}
+            className={`flex cursor-pointer items-center gap-2 px-3 py-2 text-sm transition-colors ${
+              value === "" ? "bg-accent/15 text-accent" : "text-muted hover:bg-white/5 hover:text-white"
+            }`}
+          >
+            {value === "" ? (
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            ) : (
+              <span className="w-3" />
+            )}
+            Any
+          </li>
+
+          {options.map((o) => (
+            <li
+              key={o.value}
+              role="option"
+              data-value={o.value}
+              aria-selected={value === o.value}
+              onClick={() => { onChange(o.value); setOpen(false); }}
+              className={`flex cursor-pointer items-center gap-2 px-3 py-2 text-sm transition-colors ${
+                value === o.value
+                  ? "bg-accent/15 text-accent"
+                  : "text-soft hover:bg-white/5 hover:text-white"
+              }`}
+            >
+              {value === o.value ? (
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              ) : (
+                <span className="w-3" />
+              )}
+              {o.label}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -47,10 +145,19 @@ export default function SearchView() {
   const sp = useSearchParams();
 
   const q = sp.get("q") ?? "";
-  // everything that affects the result set (excludes the modal's `id`)
   const key = [q, ...FILTER_KEYS.map((k) => sp.get(k) ?? "")].join("|");
 
   const [text, setText] = useState(q);
+  const textRef = useRef(text);
+  useEffect(() => {
+    textRef.current = text;
+  }, [text]);
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [showFilters, setShowFilters] = useState(false);
   const [results, setResults] = useState<AnimeSummary[]>([]);
   const [page, setPage] = useState(1);
@@ -60,8 +167,10 @@ export default function SearchView() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
-  const generation = useRef(0); // bumped on every new search so late "load more" responses are dropped
+  const generation = useRef(0);
   const spRef = useRef(sp);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const loadingMoreRef = useRef(false);
   useEffect(() => {
     spRef.current = sp;
   });
@@ -79,31 +188,31 @@ export default function SearchView() {
     [router, pathname],
   );
 
-  // debounce typing -> URL
+  // Debounce typing -> URL only when trimmed text actually differs from URL `q`
   useEffect(() => {
-    if (text === q) return;
-    const t = setTimeout(() => update({ q: text.trim() }), 350);
+    const trimmed = text.trim();
+    if (trimmed === q) return;
+    const t = setTimeout(() => update({ q: trimmed }), 350);
     return () => clearTimeout(t);
   }, [text, q, update]);
 
-  // sync text when URL q changes externally (e.g. navbar search)
+  // Sync text from URL only when `q` changed externally (differs from current trimmed input)
   useEffect(() => {
-    const t = setTimeout(() => setText(q), 0);
-    return () => clearTimeout(t);
-  }, [q]);
+    if (!mounted) return;
+    if (q !== textRef.current.trim()) {
+      setText(q);
+    }
+  }, [mounted, q]);
 
-  const buildUrl = useCallback(
-    (p: number) => {
-      const u = new URLSearchParams();
-      const s = spRef.current;
-      if (s.get("q")) u.set("q", s.get("q")!);
-      for (const k of FILTER_KEYS) if (s.get(k)) u.set(k, s.get(k)!);
-      u.set("page", String(p));
-      u.set("perPage", "24");
-      return `/api/search?${u.toString()}`;
-    },
-    [],
-  );
+  const buildUrl = useCallback((p: number) => {
+    const u = new URLSearchParams();
+    const s = spRef.current;
+    if (s.get("q")) u.set("q", s.get("q")!);
+    for (const k of FILTER_KEYS) if (s.get(k)) u.set(k, s.get(k)!);
+    u.set("page", String(p));
+    u.set("perPage", "24");
+    return `/api/search?${u.toString()}`;
+  }, []);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -139,14 +248,20 @@ export default function SearchView() {
     };
   }, [key, buildUrl, retryKey]);
 
-  const loadMore = async () => {
+  const loadMore = useCallback(async () => {
+    if (!hasNext || loadingMoreRef.current) return;
+
+    loadingMoreRef.current = true;
     const gen = generation.current;
     setLoadingMore(true);
+    setError(false);
+
     try {
       const r = await fetch(buildUrl(page + 1));
       const d = await r.json();
       if (!r.ok) throw new Error();
-      if (gen !== generation.current) return; // filters changed while loading
+      if (gen !== generation.current) return;
+
       setResults((prev) => {
         const seen = new Set(prev.map((a) => a.id));
         return [...prev, ...d.results.filter((a: AnimeSummary) => !seen.has(a.id))];
@@ -156,9 +271,25 @@ export default function SearchView() {
     } catch {
       if (gen === generation.current) setError(true);
     } finally {
+      loadingMoreRef.current = false;
       setLoadingMore(false);
     }
-  };
+  }, [buildUrl, hasNext, page]);
+
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node || loading || loadingMore || !hasNext || error) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) void loadMore();
+      },
+      { rootMargin: "450px 0px" }, // fetch shortly before reaching the bottom
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [error, hasNext, loadMore, loading, loadingMore]);
 
   const years = useMemo(() => {
     const y = new Date().getFullYear() + 1;
@@ -195,7 +326,7 @@ export default function SearchView() {
             activeCount ? "border-accent text-accent" : "border-line text-soft"
           }`}
         >
-          <SlidersHorizontal size={15} /> Filters{activeCount ? ` (${activeCount})` : ""}
+          <SlidersHorizontal size={15} className={`transition-transform duration-200 ${showFilters ? "rotate-90" : ""}`} /> Filters{activeCount ? ` (${activeCount})` : ""}
         </button>
       </div>
 
@@ -211,7 +342,7 @@ export default function SearchView() {
       <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-muted">
         {!loading && !error && <span>{total >= 5000 ? "5000+" : total.toLocaleString()} results</span>}
         {(q || activeCount > 0 || sp.get("sort")) && (
-          <button onClick={clearAll} className="flex items-center gap-1 rounded-full border border-line px-2.5 py-1 text-xs hover:text-white">
+          <button onClick={clearAll} className="btn flex items-center gap-1 rounded-full border border-line px-2.5 py-1 text-xs transition hover:border-accent active:scale-95 hover:text-white">
             <X size={12} /> Clear all
           </button>
         )}
@@ -227,7 +358,7 @@ export default function SearchView() {
         ) : error && results.length === 0 ? (
           <div className="rounded-lg border border-line bg-panel p-10 text-center">
             <p className="text-soft">Couldn&apos;t load results.</p>
-            <button onClick={() => setRetryKey((k) => k + 1)} className="mt-3 rounded-lg border border-line px-4 py-2 text-sm hover:border-accent">
+            <button onClick={() => setRetryKey((k) => k + 1)} className="btn mt-3 rounded-lg border border-line px-4 py-2 text-sm transition hover:border-accent active:scale-95">
               Retry
             </button>
           </div>
@@ -238,21 +369,42 @@ export default function SearchView() {
         ) : (
           <>
             <CardGrid>
-              {results.map((a) => (
-                <AnimeCard key={a.id} anime={a} />
+              {results.map((a, index) => (
+                <div
+                  key={a.id}
+                  className="browse-card-enter"
+                  style={{ animationDelay: `${(index % 8) * 45}ms` }}
+                >
+                  <AnimeCard anime={a} />
+                </div>
               ))}
+              {loadingMore &&
+                Array.from({ length: 6 }, (_, i) => (
+                  <CardSkeleton key={`loading-${i}`} />
+                ))}
             </CardGrid>
-            {hasNext && (
-              <div className="mt-8 text-center">
+            <div
+              ref={sentinelRef}
+              className="mt-8 flex min-h-16 items-center justify-center"
+              aria-live="polite"
+            >
+              {loadingMore ? (
+                <span role="status" className="sr-only">
+                  Loading more anime…
+                </span>
+              ) : hasNext ? (
                 <button
                   onClick={loadMore}
                   disabled={loadingMore}
-                  className="rounded-lg border border-line bg-panel px-6 py-2.5 text-sm text-soft transition hover:border-accent disabled:opacity-50"
+                  className="btn btn-lift inline-flex items-center gap-2 rounded-lg border border-line bg-panel px-6 py-2.5 text-sm text-soft transition hover:border-accent active:scale-95 disabled:opacity-60"
                 >
-                  {loadingMore ? "Loading…" : "Load more"}
+                  {loadingMore && <Loader2 size={14} className="animate-spin" />}
+                  {loadingMore ? "Loading…" : error ? "Retry loading" : "Load more"}
                 </button>
-              </div>
-            )}
+              ) : (
+                <span className="text-sm text-muted">You’ve reached the end.</span>
+              )}
+            </div>
           </>
         )}
       </div>

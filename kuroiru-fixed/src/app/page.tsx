@@ -4,7 +4,7 @@ import HeroCarousel from "@/components/home/HeroCarousel";
 import TrendingSection from "@/components/home/TrendingSection";
 import AiringCalendar from "@/components/home/AiringCalendar";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 600;
 
 async function safe<T>(p: Promise<T>, fallback: T): Promise<T> {
   try {

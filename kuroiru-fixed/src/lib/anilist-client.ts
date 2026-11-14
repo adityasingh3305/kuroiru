@@ -1,22 +1,50 @@
-/* Browser-side AniList helpers (direct sync with the user's token). */
 import type { WatchEntry, WatchStatus } from "./types";
 
 const ENDPOINT = "https://graphql.anilist.co";
 
+export class AnilistAuthError extends Error {
+  constructor(message = "AniList session expired. Please reconnect your account.") {
+    super(message);
+    this.name = "AnilistAuthError";
+  }
+}
+
 async function request(token: string, query: string, variables: Record<string, unknown> = {}) {
-  const res = await fetch(ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ query, variables }),
-  });
-  const json = await res.json().catch(() => null);
-  if (!res.ok && !json?.errors) throw new Error(`AniList request failed (${res.status})`);
-  if (json?.errors) throw new Error(json.errors[0]?.message ?? "AniList error");
-  return json?.data;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const res = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ query, variables }),
+      signal: AbortSignal.timeout(12000),
+    });
+
+    if (res.status === 401) {
+      throw new AnilistAuthError();
+    }
+
+    if (res.status === 429 && attempt < 2) {
+      const retryAfter = Number(res.headers.get("retry-after"));
+      const waitMs = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 2500;
+      await new Promise((r) => setTimeout(r, Math.min(waitMs, 60000)));
+      continue;
+    }
+
+    const json = await res.json().catch(() => null);
+    if (json?.errors) {
+      const msg = json.errors[0]?.message ?? "AniList error";
+      if (/invalid token|unauthenticated/i.test(msg)) {
+        throw new AnilistAuthError();
+      }
+      throw new Error(msg);
+    }
+    if (!res.ok) throw new Error(`AniList request failed (${res.status})`);
+    return json?.data;
+  }
+  throw new Error("AniList rate limit exceeded. Try again shortly.");
 }
 
 export interface AnilistUser {
@@ -27,14 +55,15 @@ export interface AnilistUser {
 
 export async function fetchViewer(token: string): Promise<AnilistUser> {
   const d = await request(token, `query{Viewer{id name avatar{medium}}}`);
-  if (!d?.Viewer) throw new Error("Invalid AniList token");
+  if (!d?.Viewer) throw new AnilistAuthError("Invalid AniList token");
   return { id: d.Viewer.id, name: d.Viewer.name, avatar: d.Viewer.avatar?.medium ?? null };
 }
 
 export async function saveRemoteEntry(
   token: string,
-  e: { animeId: number; status: WatchStatus; progress: number; score: number },
+  e: { animeId: number; status: WatchStatus; progress: number; score: number; scoreRaw?: number },
 ) {
+  const scoreRaw = e.scoreRaw !== undefined ? e.scoreRaw : e.score * 10;
   await request(
     token,
     `mutation($mediaId:Int,$status:MediaListStatus,$progress:Int,$scoreRaw:Int){
@@ -44,7 +73,7 @@ export async function saveRemoteEntry(
       mediaId: e.animeId,
       status: e.status,
       progress: e.progress,
-      scoreRaw: e.score * 10,
+      scoreRaw,
     },
   );
 }
@@ -66,32 +95,41 @@ export async function importRemoteList(token: string, userId: number): Promise<W
     token,
     `query($userId:Int){
       MediaListCollection(userId:$userId,type:ANIME){
-        lists { entries {
-          status progress scoreRaw updatedAt
-          media { id format episodes title { romaji english } coverImage { large } }
-        } }
+        lists {
+          isCustomList
+          entries {
+            status progress scoreRaw updatedAt
+            media { id format episodes title { romaji english } coverImage { large } }
+          }
+        }
       }
     }`,
     { userId },
   );
-  const out: WatchEntry[] = [];
+  const byId = new Map<number, WatchEntry>();
   for (const list of d?.MediaListCollection?.lists ?? []) {
-    for (const e of list.entries) {
-      const status: WatchStatus = e.status === "REPEATING" ? "CURRENT" : e.status;
-      out.push({
+    if (list.isCustomList) continue;
+    for (const e of list.entries ?? []) {
+      if (!e?.media?.id) continue;
+      const raw = e.scoreRaw ?? 0;
+      const updatedAt = e.updatedAt ? e.updatedAt * 1000 : 0;
+      const prev = byId.get(e.media.id);
+      if (prev && prev.updatedAt >= updatedAt) continue;
+      byId.set(e.media.id, {
         animeId: e.media.id,
-        status,
+        status: e.status as WatchStatus,
         progress: e.progress ?? 0,
-        score: Math.round((e.scoreRaw ?? 0) / 10),
-        title: e.media.title.english || e.media.title.romaji,
+        score: Math.round(raw / 10),
+        scoreRaw: raw,
+        title: e.media.title.english || e.media.title.romaji || "Untitled",
         cover: e.media.coverImage?.large ?? "",
         format: e.media.format ?? null,
         episodes: e.media.episodes ?? null,
-        updatedAt: (e.updatedAt ?? 0) * 1000 || Date.now(),
+        updatedAt,
       });
     }
   }
-  return out;
+  return [...byId.values()];
 }
 
 export function oauthUrl(clientId: string) {

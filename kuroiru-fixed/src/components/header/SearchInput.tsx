@@ -1,11 +1,58 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, X } from "lucide-react";
 import type { AnimeSummary } from "@/lib/types";
-import SearchDropdown from "./SearchDropdown";
+import SearchDropdown, { type SearchPhase } from "./SearchDropdown";
 import { useAnimeModal } from "../anime/useOpenAnime";
+
+export function useSearch(q: string) {
+  const [phase, setPhase] = useState<SearchPhase>("idle");
+  const [results, setResults] = useState<AnimeSummary[]>([]);
+  const [active, setActive] = useState(-1);
+
+  useEffect(() => {
+    const term = q.trim();
+    if (term.length < 2) {
+      setResults([]);
+      setPhase("idle");
+      setActive(-1);
+      return;
+    }
+
+    setResults([]);
+    setPhase("debouncing");
+    setActive(-1);
+
+    const ctrl = new AbortController();
+    const t = setTimeout(async () => {
+      setPhase("fetching");
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(term)}&perPage=7`, {
+          signal: ctrl.signal,
+        });
+        const data = await res.json();
+        if (ctrl.signal.aborted) return;
+        setResults(data.results ?? []);
+        setPhase("done");
+        setActive(-1);
+      } catch {
+        if (!ctrl.signal.aborted) {
+          setResults([]);
+          setPhase("error");
+        }
+      }
+    }, 250);
+
+    return () => {
+      clearTimeout(t);
+      ctrl.abort();
+    };
+  }, [q]);
+
+  return { phase, results, active, setActive };
+}
 
 export default function SearchInput() {
   const router = useRouter();
@@ -14,9 +61,7 @@ export default function SearchInput() {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [q, setQ] = useState("");
   const [focused, setFocused] = useState(false);
-  const [results, setResults] = useState<AnimeSummary[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [active, setActive] = useState(-1);
+  const { phase, results, active, setActive } = useSearch(q);
 
   // 'F' or '/' focuses search
   useEffect(() => {
@@ -35,40 +80,6 @@ export default function SearchInput() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // debounced fetch
-  useEffect(() => {
-    const term = q.trim();
-    if (term.length < 2) {
-      const t = setTimeout(() => {
-        setResults([]);
-        setLoading(false);
-      }, 0);
-      return () => clearTimeout(t);
-    }
-    const ctrl = new AbortController();
-    const t = setTimeout(async () => {
-      setLoading(true);
-      try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(term)}&perPage=7`, {
-          signal: ctrl.signal,
-        });
-        const data = await res.json();
-        if (ctrl.signal.aborted) return;
-        setResults(data.results ?? []);
-        setActive(-1);
-      } catch {
-        // aborted, or the search failed: don't keep showing results for an older query
-        if (!ctrl.signal.aborted) setResults([]);
-      } finally {
-        if (!ctrl.signal.aborted) setLoading(false);
-      }
-    }, 250);
-    return () => {
-      clearTimeout(t);
-      ctrl.abort();
-    };
-  }, [q]);
-
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
       if (!wrapRef.current?.contains(e.target as Node)) setFocused(false);
@@ -77,19 +88,22 @@ export default function SearchInput() {
     return () => document.removeEventListener("mousedown", onDown);
   }, []);
 
-  const goAll = () => {
+  const goAll = useCallback(() => {
     const term = q.trim();
     if (!term) return;
     setFocused(false);
     inputRef.current?.blur();
     router.push(`/search?q=${encodeURIComponent(term)}`);
-  };
+  }, [q, router]);
 
-  const pick = (a: AnimeSummary) => {
-    setFocused(false);
-    inputRef.current?.blur();
-    open(a.id);
-  };
+  const pick = useCallback(
+    (a: AnimeSummary) => {
+      setFocused(false);
+      inputRef.current?.blur();
+      open(a.id);
+    },
+    [open],
+  );
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") {
@@ -108,11 +122,33 @@ export default function SearchInput() {
     }
   };
 
+  const showDropdown = focused && phase !== "idle";
+  const activeId =
+    showDropdown && active >= 0
+      ? active < results.length
+        ? `search-opt-${results[active].id}`
+        : "search-opt-all"
+      : undefined;
+
   return (
-    <div ref={wrapRef} className="relative w-full">
+    <div
+      ref={wrapRef}
+      className="relative w-full"
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+          setFocused(false);
+        }
+      }}
+    >
       <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-dim" />
       <input
         ref={inputRef}
+        role="combobox"
+        aria-expanded={showDropdown}
+        aria-haspopup="listbox"
+        aria-autocomplete="list"
+        aria-controls="search-results-listbox"
+        aria-activedescendant={activeId}
         value={q}
         onChange={(e) => setQ(e.target.value)}
         onFocus={() => setFocused(true)}
@@ -138,11 +174,11 @@ export default function SearchInput() {
           F
         </kbd>
       )}
-      {focused && q.trim().length >= 2 && (
+      {showDropdown && (
         <SearchDropdown
           query={q}
           results={results}
-          loading={loading}
+          phase={phase}
           active={active}
           onPick={pick}
           onAll={goAll}

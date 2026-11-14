@@ -3,17 +3,21 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { AnimeSummary, WatchEntry, WatchStatus } from "./types";
+import { deriveWatchState } from "./watchStatus";
 import {
+  AnilistAuthError,
   deleteRemoteEntry,
   saveRemoteEntry,
   type AnilistUser,
 } from "./anilist-client";
 
 type Minimal = Pick<AnimeSummary, "id" | "title" | "cover" | "format" | "episodes">;
+type PendingOp = { type: "save" | "delete"; animeId: number };
 
 interface State {
   hydrated: boolean;
   entries: Record<number, WatchEntry>;
+  pendingOps: Record<number, PendingOp>;
   anilistToken: string | null;
   anilistUser: AnilistUser | null;
   lastSyncError: string | null;
@@ -24,9 +28,22 @@ interface State {
     patch: Partial<Pick<WatchEntry, "status" | "progress" | "score">>,
   ) => void;
   remove: (animeId: number) => void;
-  mergeEntries: (entries: WatchEntry[]) => void;
+  mergeEntries: (entries: WatchEntry[]) => number;
   setAnilist: (token: string | null, user: AnilistUser | null) => void;
   setSyncError: (msg: string | null) => void;
+  flushQueue: () => Promise<void>;
+}
+
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
+let flushing = false;
+let syncCallId = 0;
+
+function scheduleFlush(fn: () => Promise<void>, delay = 600) {
+  if (flushTimer) clearTimeout(flushTimer);
+  flushTimer = setTimeout(() => {
+    flushTimer = null;
+    void fn();
+  }, delay);
 }
 
 export const useStore = create<State>()(
@@ -34,6 +51,7 @@ export const useStore = create<State>()(
     (set, get) => ({
       hydrated: false,
       entries: {},
+      pendingOps: {},
       anilistToken: null,
       anilistUser: null,
       lastSyncError: null,
@@ -43,34 +61,32 @@ export const useStore = create<State>()(
       track: (anime, patch) => {
         const s = get();
         const prev = s.entries[anime.id];
-        let status: WatchStatus = patch.status ?? prev?.status ?? "PLANNING";
-        let progress = patch.progress ?? prev?.progress ?? 0;
-        const score = patch.score ?? prev?.score ?? 0;
         const total = anime.episodes ?? prev?.episodes ?? null;
+        const { status, progress } = deriveWatchState(prev, patch, total);
+        const score = patch.score ?? prev?.score ?? 0;
+        const scoreRaw =
+          patch.score !== undefined ? patch.score * 10 : (prev?.scoreRaw ?? score * 10);
 
-        if (patch.status === "COMPLETED" && total) progress = total;
-        if (patch.progress !== undefined) {
-          progress = Math.max(0, total ? Math.min(total, progress) : progress);
-          if (total && progress >= total) status = "COMPLETED";
-          else if (progress > 0 && (status === "PLANNING" || status === "COMPLETED"))
-            status = "CURRENT";
-        }
         const entry: WatchEntry = {
           animeId: anime.id,
           status,
           progress,
           score,
+          scoreRaw,
           title: anime.title,
           cover: anime.cover,
           format: anime.format,
           episodes: total,
           updatedAt: Date.now(),
         };
-        set({ entries: { ...s.entries, [anime.id]: entry } });
+
+        const nextOps = s.anilistToken
+          ? { ...s.pendingOps, [anime.id]: { type: "save" as const, animeId: anime.id } }
+          : s.pendingOps;
+
+        set({ entries: { ...s.entries, [anime.id]: entry }, pendingOps: nextOps });
         if (s.anilistToken) {
-          saveRemoteEntry(s.anilistToken, entry)
-            .then(() => get().lastSyncError && set({ lastSyncError: null }))
-            .catch((e) => set({ lastSyncError: e.message }));
+          scheduleFlush(() => get().flushQueue());
         }
       },
 
@@ -78,32 +94,93 @@ export const useStore = create<State>()(
         const s = get();
         const next = { ...s.entries };
         delete next[animeId];
-        set({ entries: next });
+        const nextOps = s.anilistToken
+          ? { ...s.pendingOps, [animeId]: { type: "delete" as const, animeId } }
+          : s.pendingOps;
+        set({ entries: next, pendingOps: nextOps });
         if (s.anilistToken) {
-          deleteRemoteEntry(s.anilistToken, animeId).catch((e) =>
-            set({ lastSyncError: e.message }),
-          );
+          scheduleFlush(() => get().flushQueue());
+        }
+      },
+
+      flushQueue: async () => {
+        if (flushing) return;
+        flushing = true;
+        try {
+          while (true) {
+            const s = get();
+            const token = s.anilistToken;
+            const ops = Object.values(s.pendingOps);
+            if (!token || ops.length === 0) break;
+            if (typeof navigator !== "undefined" && !navigator.onLine) break;
+
+            const op = ops[0];
+            const snapshotEntry = s.entries[op.animeId];
+            const myId = ++syncCallId;
+            try {
+              if (op.type === "save" && snapshotEntry) {
+                await saveRemoteEntry(token, snapshotEntry);
+              } else if (op.type === "delete") {
+                await deleteRemoteEntry(token, op.animeId);
+              }
+              const cur = get();
+              const latestEntry = cur.entries[op.animeId];
+              // Only dequeue if the entry wasn't modified again while the request was in flight
+              if (
+                (op.type === "save" && latestEntry?.updatedAt === snapshotEntry?.updatedAt) ||
+                (op.type === "delete" && !latestEntry)
+              ) {
+                const copy = { ...cur.pendingOps };
+                delete copy[op.animeId];
+                set({ pendingOps: copy, ...(myId === syncCallId ? { lastSyncError: null } : {}) });
+              }
+            } catch (e) {
+              if (myId === syncCallId) {
+                if (e instanceof AnilistAuthError) {
+                  set({
+                    anilistToken: null,
+                    anilistUser: null,
+                    lastSyncError: e.message,
+                  });
+                } else {
+                  set({ lastSyncError: e instanceof Error ? e.message : "Sync failed" });
+                }
+              }
+              break;
+            }
+          }
+        } finally {
+          flushing = false;
         }
       },
 
       mergeEntries: (incoming) => {
         const s = get();
         const next = { ...s.entries };
+        let count = 0;
         for (const e of incoming) {
           const cur = next[e.animeId];
-          if (!cur || e.updatedAt > cur.updatedAt) next[e.animeId] = e;
+          if (!cur || e.updatedAt > cur.updatedAt) {
+            next[e.animeId] = e;
+            count++;
+          }
         }
         set({ entries: next });
+        return count;
       },
 
-      setAnilist: (token, user) => set({ anilistToken: token, anilistUser: user }),
+      setAnilist: (token, user) =>
+        set({ anilistToken: token, anilistUser: user, lastSyncError: null }),
       setSyncError: (msg) => set({ lastSyncError: msg }),
     }),
     {
       name: "kuroiru-store",
+      version: 1,
+      migrate: (persistedState: any) => persistedState,
       skipHydration: true,
       partialize: (s) => ({
         entries: s.entries,
+        pendingOps: s.pendingOps,
         anilistToken: s.anilistToken,
         anilistUser: s.anilistUser,
       }),

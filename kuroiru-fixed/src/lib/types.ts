@@ -1,5 +1,6 @@
 export type WatchStatus =
   | "CURRENT"
+  | "REPEATING"
   | "PLANNING"
   | "COMPLETED"
   | "PAUSED"
@@ -11,6 +12,7 @@ export const WATCH_STATUSES: {
   color: string;
 }[] = [
   { value: "CURRENT", label: "Watching", color: "#96ca8e" },
+  { value: "REPEATING", label: "Rewatching", color: "#7fd1ae" },
   { value: "PLANNING", label: "Planned", color: "#ffd0ad" },
   { value: "COMPLETED", label: "Completed", color: "#bbdbdf" },
   { value: "PAUSED", label: "On hold", color: "#c9b6ff" },
@@ -35,6 +37,7 @@ export interface AnimeSummary {
   genres: string[];
   description: string | null;
   nextAiring: { episode: number; airingAt: number } | null;
+  rank?: number;
 }
 
 export interface ScheduleItem {
@@ -107,6 +110,7 @@ export interface WatchEntry {
   status: WatchStatus;
   progress: number;
   score: number;
+  scoreRaw?: number;
   title: string;
   cover: string;
   format: string | null;

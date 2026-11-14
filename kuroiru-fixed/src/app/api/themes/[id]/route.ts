@@ -11,5 +11,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   if (!themes) {
     return NextResponse.json({ themes: [], error: "AnimeThemes unavailable" }, { status: 502 });
   }
-  return NextResponse.json({ themes });
+  return NextResponse.json(
+    { themes },
+    { headers: { "Cache-Control": "public, s-maxage=600, stale-while-revalidate=1200" } },
+  );
 }

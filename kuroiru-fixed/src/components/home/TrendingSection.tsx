@@ -30,11 +30,11 @@ export default function TrendingSection({
               View all
             </Link>
           )}
-          <button aria-label="Scroll left" onClick={() => scroll(-1)} className="hidden h-8 w-8 place-items-center rounded-full border border-line text-muted transition hover:border-accent hover:text-white sm:grid">
-            <ChevronLeft size={16} />
+          <button aria-label="Scroll left" onClick={() => scroll(-1)} className="btn group hidden h-8 w-8 place-items-center rounded-full border border-line text-muted hover:border-accent hover:text-white sm:grid">
+            <ChevronLeft size={16} className="transition-transform group-hover:-translate-x-0.5" />
           </button>
-          <button aria-label="Scroll right" onClick={() => scroll(1)} className="hidden h-8 w-8 place-items-center rounded-full border border-line text-muted transition hover:border-accent hover:text-white sm:grid">
-            <ChevronRight size={16} />
+          <button aria-label="Scroll right" onClick={() => scroll(1)} className="btn group hidden h-8 w-8 place-items-center rounded-full border border-line text-muted hover:border-accent hover:text-white sm:grid">
+            <ChevronRight size={16} className="transition-transform group-hover:translate-x-0.5" />
           </button>
         </div>
       </div>

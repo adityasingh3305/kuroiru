@@ -4,7 +4,7 @@ import { getAnimeDetail } from "@/lib/anilist";
 import AnimeDetailView from "@/components/anime/AnimeDetailView";
 import type { AnimeDetail } from "@/lib/types";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 900;
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -42,7 +42,7 @@ export default async function AnimePage({ params }: Props) {
   }
   if (!failed && !anime) notFound();
   return (
-    <div className="mx-auto max-w-5xl overflow-hidden rounded-xl border border-line bg-bg">
+    <div className="mx-auto max-w-5xl rounded-xl border border-line bg-bg">
       <AnimeDetailView key={n} id={n} initial={failed ? null : anime} />
     </div>
   );
