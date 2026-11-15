@@ -159,7 +159,7 @@ export default function SearchView() {
   }, []);
 
   const [showFilters, setShowFilters] = useState(false);
-  const [results, setResults] = useState<AnimeSummary[]>([]);
+  const [results, setResults] = useState<(AnimeSummary & { _new?: boolean })[]>([]);
   const [page, setPage] = useState(1);
   const [hasNext, setHasNext] = useState(false);
   const [total, setTotal] = useState(0);
@@ -227,7 +227,7 @@ export default function SearchView() {
           return d;
         })
         .then((d) => {
-          setResults(d.results);
+          setResults(d.results.map((a: AnimeSummary) => ({ ...a, _new: false })));
           setHasNext(d.hasNextPage);
           setTotal(d.total);
           setPage(1);
@@ -264,7 +264,12 @@ export default function SearchView() {
 
       setResults((prev) => {
         const seen = new Set(prev.map((a) => a.id));
-        return [...prev, ...d.results.filter((a: AnimeSummary) => !seen.has(a.id))];
+        const incoming = d.results
+          .filter((a: AnimeSummary) => !seen.has(a.id))
+          .map((a: AnimeSummary) => ({ ...a, _new: true }));
+        // Clear _new flag on existing items so they don't re-animate
+        const existing = prev.map((a) => ({ ...a, _new: false }));
+        return [...existing, ...incoming];
       });
       setHasNext(d.hasNextPage);
       setPage((p) => p + 1);
@@ -372,8 +377,8 @@ export default function SearchView() {
               {results.map((a, index) => (
                 <div
                   key={a.id}
-                  className="browse-card-enter"
-                  style={{ animationDelay: `${(index % 8) * 45}ms` }}
+                  className={a._new ? "browse-card-enter" : undefined}
+                  style={a._new ? { animationDelay: `${(index % 8) * 45}ms` } : undefined}
                 >
                   <AnimeCard anime={a} />
                 </div>
