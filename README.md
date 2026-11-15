@@ -41,6 +41,26 @@
 
 ---
 
+## 📸 App Preview
+
+<div align="center">
+
+### 🏠 Discovery & Airing Dashboard
+<p><em>Hero carousel featuring trending releases, season spotlights, weekly broadcast schedule, and all-time favorites.</em></p>
+
+<img src="./public/screenshots/home.png" width="96%" style="border-radius: 12px; border: 1px solid #333333; box-shadow: 0 10px 30px rgba(0,0,0,0.6);" alt="Kuroiru Home Screen" />
+
+<br/><br/>
+
+### 🔍 Advanced Browse & Multi-Filter Library
+<p><em>Lightning-fast filtering across genres, release years, seasons, media formats, airing statuses, and sorting orders.</em></p>
+
+<img src="./public/screenshots/browse.png" width="96%" style="border-radius: 12px; border: 1px solid #333333; box-shadow: 0 10px 30px rgba(0,0,0,0.6);" alt="Kuroiru Browse & Filters" />
+
+</div>
+
+---
+
 <img src="https://user-images.githubusercontent.com/74038190/212284158-e840e285-664b-44d7-b79b-e264b5e54825.gif" width="100%" alt="divider"/>
 
 ## ✨ Features
@@ -52,7 +72,7 @@
 <h3 align="center">⚡ Zero-Database Architecture</h3>
 
 <p align="center">
-  <img src="https://media.giphy.com/media/26tn33aiTi1jkl6H6/giphy.gif" width="340" height="190" style="border-radius:10px;" alt="Performance"/>
+  <img src="https://media.giphy.com/media/fA7rLtaJ5IxWE76dB9/giphy.gif" width="340" height="190" style="border-radius:10px; object-fit: cover;" alt="Speed & Performance"/>
 </p>
 
 No SQL. No NoSQL. No server-side storage at all.  
@@ -64,7 +84,7 @@ Kuroiru runs entirely on the client, keeping cold-starts under a second and page
 <h3 align="center">🔄 AniList Two-Way Sync</h3>
 
 <p align="center">
-  <img src="https://media.giphy.com/media/13HgwGsXF0aiGY/giphy.gif" width="340" height="190" style="border-radius:10px;" alt="AniList Sync"/>
+  <img src="https://media.giphy.com/media/UgV8Y7bDoxzd5Ke7al/giphy.gif" width="340" height="190" style="border-radius:10px; object-fit: cover;" alt="AniList Two-Way Sync"/>
 </p>
 
 Connect your **AniList account** in one click via OAuth. Kuroiru performs true bi-directional sync — statuses, episode progress, and scores flow in both directions. Track anime as *Watching*, *Completed*, *Planning*, *Paused*, or *Dropped*, and it reflects instantly on AniList.
@@ -77,7 +97,7 @@ Connect your **AniList account** in one click via OAuth. Kuroiru performs true b
 <h3 align="center">🎵 AnimeThemes Video Player</h3>
 
 <p align="center">
-  <img src="https://media.giphy.com/media/du3J3cXyzhj75IOgvA/giphy.gif" width="340" height="190" style="border-radius:10px;" alt="Music Player"/>
+  <img src="https://media.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy.gif" width="340" height="190" style="border-radius:10px; object-fit: cover;" alt="Theme Song Player"/>
 </p>
 
 Stream high-bitrate **Opening (OP)** and **Ending (ED)** theme videos directly within the app. Each entry includes song title, artist credits, episode spans, and alternate versions — turning every anime page into a mini music experience.
@@ -88,7 +108,7 @@ Stream high-bitrate **Opening (OP)** and **Ending (ED)** theme videos directly w
 <h3 align="center">📅 Airing Calendar & Countdown</h3>
 
 <p align="center">
-  <img src="https://media.giphy.com/media/bMLGNRoAY093i/giphy.gif" width="340" height="190" style="border-radius:10px;" alt="Calendar"/>
+  <img src="https://media.giphy.com/media/WOb8EeFziTQNERE2Id/giphy.gif" width="340" height="190" style="border-radius:10px; object-fit: cover;" alt="Airing Schedule & Countdown"/>
 </p>
 
 A full **day-by-day weekly schedule** for every currently airing anime. Live countdown timers tick down to each upcoming broadcast, complete with episode titles, runtime info, and seasonal metadata — all updated in real time.
