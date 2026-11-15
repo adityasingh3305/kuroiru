@@ -56,7 +56,7 @@
 </p>
 
 No SQL. No NoSQL. No server-side storage at all.  
-Kuroiru runs entirely on the client using **localStorage** backed by a reactive **Zustand 5** store. Edge API routes handle all external data fetching, keeping cold-starts under a second and page transitions instant.
+Kuroiru runs entirely on the client, keeping cold-starts under a second and page transitions instant. Your watchlist and history are automatically preserved locally on your device — no account required.
 
 </td>
 <td width="50%" valign="top">
@@ -80,7 +80,7 @@ Connect your **AniList account** in one click via OAuth. Kuroiru performs true b
   <img src="https://media.giphy.com/media/du3J3cXyzhj75IOgvA/giphy.gif" width="340" height="190" style="border-radius:10px;" alt="Music Player"/>
 </p>
 
-Stream high-bitrate **Opening (OP)** and **Ending (ED)** theme videos directly within the app via the **AnimeThemes public API**. Each entry includes song title, artist credits, episode spans, and alternate versions — turning every anime page into a mini music experience.
+Stream high-bitrate **Opening (OP)** and **Ending (ED)** theme videos directly within the app. Each entry includes song title, artist credits, episode spans, and alternate versions — turning every anime page into a mini music experience.
 
 </td>
 <td width="50%" valign="top">
@@ -91,7 +91,7 @@ Stream high-bitrate **Opening (OP)** and **Ending (ED)** theme videos directly w
   <img src="https://media.giphy.com/media/bMLGNRoAY093i/giphy.gif" width="340" height="190" style="border-radius:10px;" alt="Calendar"/>
 </p>
 
-A full **day-by-day weekly schedule** for every currently airing anime, powered by the **AniList GraphQL API** and **AniZip** episode metadata. Live countdown timers tick down to each upcoming broadcast, complete with episode titles and runtime info.
+A full **day-by-day weekly schedule** for every currently airing anime. Live countdown timers tick down to each upcoming broadcast, complete with episode titles, runtime info, and seasonal metadata — all updated in real time.
 
 </td>
 </tr>
@@ -112,36 +112,22 @@ A full **day-by-day weekly schedule** for every currently airing anime, powered 
 Kuroiru ships as a fully installable **Progressive Web App**. Hit *Add to Home Screen* on any device and get a native-feeling experience with:
 
 - 📲 **Home screen install** on iOS, Android, and desktop Chrome / Edge
-- 🔌 **Offline support** — Service Worker caches static assets and your local watchlist
+- 🔌 **Offline support** — your local watchlist stays accessible without a connection
 - 🖤 **OLED-optimized** dark palette (`#151515`) that's easy on battery and eyes
 
 ---
 
-## 🛠️ Tech Stack
+<div align="center">
 
-```mermaid
-graph LR
-  subgraph UI ["Frontend & UI"]
-    Next["Next.js 16 · App Router"]
-    React["React 19"]
-    Tailwind["Tailwind CSS v4"]
-    Zustand["Zustand 5 · State"]
-    PWA["Service Worker · PWA"]
-  end
+<img src="https://user-images.githubusercontent.com/74038190/212284100-561aa473-3905-4a80-b561-0d28506553ee.gif" width="100%" alt="footer divider"/>
 
-  subgraph APIs ["External Data Sources"]
-    AniList["AniList GraphQL"]
-    Themes["AnimeThemes API"]
-    AniZip["AniZip Metadata"]
-  end
+<br/>
 
-  subgraph Storage ["Persistence & Auth"]
-    Local["Browser localStorage"]
-    OAuth["AniList OAuth"]
-  end
+Built with obsession for anime culture.  
+Anime data by [AniList](https://anilist.co/) · Theme music by [AnimeThemes](https://animethemes.moe/)
 
-  Next --> AniList
-  Next --> Themes
-  Next --> AniZip
-  Zustand <--> Local
-  Zustand <--> OAuth
+**[🌐 Open Kuroiru →](https://kuroiru-production.up.railway.app)**
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0d0d0d&height=120&section=footer&fontColor=bbdbdf" width="100%" alt="footer wave"/>
+
+</div>
