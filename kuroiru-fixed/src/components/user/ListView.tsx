@@ -124,6 +124,7 @@ export default function ListView() {
                     </div>
                     <div className="mt-auto flex items-center gap-2 pt-2">
                       <button
+                        type="button"
                         aria-label="Decrease episode"
                         disabled={e.progress <= 0}
                         onClick={() => {
@@ -138,6 +139,7 @@ export default function ListView() {
                         <span key={e.progress} className="icon-pop text-white">{e.progress}</span> / {e.episodes ?? "?"}
                       </span>
                       <button
+                        type="button"
                         aria-label="Increase episode"
                         disabled={!!e.episodes && e.progress >= e.episodes}
                         onClick={() => {
@@ -156,12 +158,10 @@ export default function ListView() {
                         <Plus size={12} />
                       </button>
                       <button
+                        type="button"
                         aria-label="Remove"
-                        onClick={() => {
-                          if (window.confirm(`Remove "${e.title}" from your list?`)) {
-                            remove(e.animeId);
-                          }
-                        }}
+                        title="Remove from list"
+                        onClick={() => remove(e.animeId)}
                         className="btn icon-wiggle ml-auto grid h-7 w-7 place-items-center rounded text-dim transition hover:-rotate-12 hover:text-dropped active:scale-90"
                       >
                         <Trash2 size={14} />

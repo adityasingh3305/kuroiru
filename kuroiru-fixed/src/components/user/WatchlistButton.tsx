@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import type { AnimeSummary } from "@/lib/types";
 import { WATCH_STATUSES, type WatchStatus } from "@/lib/types";
 import { useStore } from "@/lib/store";
+import ConfirmDialog from "./ConfirmDialog";
 
 export default function WatchlistButton({ anime }: { anime: AnimeSummary }) {
   const entry = useStore((s) => (s.hydrated ? s.entries[anime.id] : undefined));
@@ -12,6 +14,7 @@ export default function WatchlistButton({ anime }: { anime: AnimeSummary }) {
   const remove = useStore((s) => s.remove);
   const synced = useStore((s) => !!s.anilistToken);
   const syncError = useStore((s) => s.lastSyncError);
+  const [showRemoveDialog, setShowRemoveDialog] = useState(false);
 
   const meta = entry ? WATCH_STATUSES.find((s) => s.value === entry.status) : undefined;
   const total = anime.episodes;
@@ -47,8 +50,12 @@ export default function WatchlistButton({ anime }: { anime: AnimeSummary }) {
             <div className="flex h-10 items-center rounded-lg border border-line bg-panel2">
               <button
                 aria-label="Decrease episode"
-                onClick={() => track(anime, { progress: entry.progress - 1 })}
-                className="grid h-full w-9 place-items-center text-muted transition hover:text-white hover:bg-white/10 active:scale-75"
+                disabled={entry.progress <= 0}
+                onClick={() => {
+                  if (entry.progress <= 0) return;
+                  track(anime, { progress: entry.progress - 1 });
+                }}
+                className="grid h-full w-9 place-items-center text-muted transition hover:text-white hover:bg-white/10 active:scale-75 disabled:cursor-not-allowed disabled:opacity-30"
               >
                 <Minus size={14} />
               </button>
@@ -58,8 +65,12 @@ export default function WatchlistButton({ anime }: { anime: AnimeSummary }) {
               </div>
               <button
                 aria-label="Increase episode"
-                onClick={() => track(anime, { progress: entry.progress + 1 })}
-                className="grid h-full w-9 place-items-center text-muted transition hover:text-white hover:bg-white/10 active:scale-75"
+                disabled={!!total && entry.progress >= total}
+                onClick={() => {
+                  if (total && entry.progress >= total) return;
+                  track(anime, { progress: entry.progress + 1 });
+                }}
+                className="grid h-full w-9 place-items-center text-muted transition hover:text-white hover:bg-white/10 active:scale-75 disabled:cursor-not-allowed disabled:opacity-30"
               >
                 <Plus size={14} />
               </button>
@@ -80,11 +91,7 @@ export default function WatchlistButton({ anime }: { anime: AnimeSummary }) {
             </select>
 
             <button
-              onClick={() => {
-                if (window.confirm(`Remove "${anime.title}" from your list?`)) {
-                  remove(anime.id);
-                }
-              }}
+              onClick={() => setShowRemoveDialog(true)}
               aria-label="Remove from list"
               title="Remove from list"
               className="btn icon-wiggle ml-auto grid h-10 w-10 place-items-center rounded-lg border border-line text-muted transition hover:border-dropped hover:text-dropped hover:-rotate-12 active:scale-90"
@@ -109,6 +116,21 @@ export default function WatchlistButton({ anime }: { anime: AnimeSummary }) {
             ? "Saved locally · syncing to AniList"
             : "Saved locally — connect AniList to sync"}
       </p>
+
+      {/* Remove dialog */}
+      <ConfirmDialog
+        open={showRemoveDialog}
+        title="Remove from list"
+        message={`"${anime.title}" will be removed from your watchlist.`}
+        confirmLabel="Remove"
+        cancelLabel="Cancel"
+        confirmVariant="danger"
+        onConfirm={() => {
+          remove(anime.id);
+          setShowRemoveDialog(false);
+        }}
+        onCancel={() => setShowRemoveDialog(false)}
+      />
     </div>
   );
 }
